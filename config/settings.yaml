@@ -1,0 +1,134 @@
+ibkr:
+  host: "127.0.0.1"
+  port: 4001
+  client_id: 1
+
+data:
+  sources:
+    historical: "yfinance"
+    realtime: "ibkr"
+  default_start: "2020-01-01"
+  bar_sizes:
+    training: "1d"
+    live: "30 mins"
+  provider_priority: ["yfinance"]
+  openbb_api_key: ""
+
+symbols:
+  watchlist:
+    # ETFs
+    - SPY
+    - QQQ
+    - IWM
+    - DIA
+    # Tech
+    - AAPL
+    - MSFT
+    - GOOGL
+    - AMZN
+    - NVDA
+    - META
+    - TSLA
+    - AMD
+    - AVGO
+    - CRM
+    - ADBE
+    # Finance
+    - JPM
+    - GS
+    - V
+    - MA
+    - BAC
+    # Healthcare
+    - JNJ
+    - UNH
+    - PFE
+    - ABBV
+    # Consumer
+    - WMT
+    - COST
+    - HD
+    - NKE
+    - SBUX
+    # Energy
+    - XOM
+    - CVX
+    # Industrial
+    - CAT
+    - BA
+    - GE
+    # Other
+    - DIS
+    - NFLX
+    - PLTR
+    - COIN
+
+agent:
+  model_name: "PPO"
+  policy: "MlpPolicy"
+  observation_bars: 20
+  reward_fn: "conservative"
+  net_arch: [128, 128]
+  training:
+    total_timesteps: 200000
+    learning_rate: 0.0003
+    n_steps: 2048
+    batch_size: 64
+    n_epochs: 10
+    gamma: 0.99
+    ent_coef: 0.01
+  inference:
+    deterministic: true
+
+risk:
+  max_position_pct: 0.40
+  max_sector_pct: 0.60
+  max_daily_loss_pct: 0.05
+  max_total_drawdown_pct: 0.15
+  min_hold_bars: 1
+  max_trades_per_day: 20
+  min_trade_value: 50.0
+
+paper_trading_capital: 1276
+
+logging:
+  level: "INFO"
+  trades_db: "logs/trades.db"
+  dashboard_port: 8501
+  trading_interval_seconds: 60
+
+llm:
+  enabled: true
+  provider: "deepseek"
+  model: "deepseek-chat"
+  api_key_env_var: "DEEPSEEK_API_KEY"
+  fundamentals_enabled: true
+  news_enabled: true
+  sentiment_enabled: true
+  technical_llm_enabled: true
+  analysis_interval_minutes: 60
+  cache_ttl_minutes: 60
+
+debate:
+  enabled: true
+  max_rounds: 2
+  min_confidence_to_trade: 0.6
+
+factor_mining:
+  enabled: false
+  max_factors: 50
+  top_k: 10
+  ic_threshold: 0.02
+  population_size: 100
+  generations: 20
+
+signal_fusion:
+  rl_weight: 0.2
+  llm_override_threshold: 0.3
+  agreement_threshold: 0.3
+  debate_boost: 0.25
+  min_override_confidence: 0.3
+
+nlp:
+  enabled: false
+  parser_mode: "pattern"
