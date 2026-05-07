@@ -56,41 +56,50 @@ is_running() {
 start_trading() {
     if is_running; then
         log "Paper trading already running (PID: $(pgrep -f 'src.main paper' | tr '\n' ' '))"
-        return 0
+    elif ! is_market_open; then
+        log "Market closed — skipping paper trading start"
+    else
+        log "Starting paper trading..."
+        source "$VENV_DIR/bin/activate"
+
+        if [ -n "$DEEPSEEK_KEY" ]; then
+            export DEEPSEEK_API_KEY="$DEEPSEEK_KEY"
+        elif [ -f "$HOME/.deepseek_key" ]; then
+            export DEEPSEEK_API_KEY=$(cat "$HOME/.deepseek_key")
+        fi
+
+        nohup python -m src.main paper >> "$LOG_DIR/trader.log" 2>&1 &
+        local pid=$!
+        echo "$pid" > "$PID_FILE"
+        log "Paper trading started (PID: $pid, DEEPSEEK_KEY: ${DEEPSEEK_API_KEY:+set})"
     fi
 
-    if ! is_market_open; then
-        log "Market closed — skipping start"
-        return 0
+    # Also start dashboard if not running
+    if ! pgrep -f "streamlit run src/monitor/app.py" > /dev/null 2>&1; then
+        log "Starting dashboard on port 8501..."
+        nohup "$VENV_DIR/bin/streamlit" run src/monitor/app.py --server.port 8501 --server.headless true >> "$LOG_DIR/dashboard.log" 2>&1 &
+        log "Dashboard started (PID: $!)"
     fi
-
-    log "Starting paper trading..."
-    source "$VENV_DIR/bin/activate"
-
-    if [ -n "$DEEPSEEK_KEY" ]; then
-        export DEEPSEEK_API_KEY="$DEEPSEEK_KEY"
-    elif [ -f "$HOME/.deepseek_key" ]; then
-        export DEEPSEEK_API_KEY=$(cat "$HOME/.deepseek_key")
-    fi
-
-    nohup python -m src.main paper >> "$LOG_DIR/trader.log" 2>&1 &
-    local pid=$!
-    echo "$pid" > "$PID_FILE"
-    log "Paper trading started (PID: $pid, DEEPSEEK_KEY: ${DEEPSEEK_API_KEY:+set})"
 }
 
 stop_trading() {
-    if ! is_running; then
-        log "Paper trading not running — nothing to stop"
-        return 0
+    if is_running; then
+        local pids=$(pgrep -f "src.main paper" | tr '\n' ' ')
+        log "Stopping paper trading (PIDs: $pids)..."
+        pkill -f "src.main paper" || true
+        sleep 2
+        rm -f "$PID_FILE"
+        log "Paper trading stopped"
+    else
+        log "Paper trading not running"
     fi
 
-    local pids=$(pgrep -f "src.main paper" | tr '\n' ' ')
-    log "Stopping paper trading (PIDs: $pids)..."
-    pkill -f "src.main paper" || true
-    sleep 2
-    rm -f "$PID_FILE"
-    log "Paper trading stopped"
+    # Stop dashboard
+    if pgrep -f "streamlit run src/monitor/app.py" > /dev/null 2>&1; then
+        log "Stopping dashboard..."
+        pkill -f "streamlit run src/monitor/app.py" || true
+        log "Dashboard stopped"
+    fi
 }
 
 health_check() {
